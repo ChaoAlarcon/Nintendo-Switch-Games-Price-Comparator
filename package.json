@@ -1,0 +1,36 @@
+{
+  "name": "nintendo-switch-games-price-comparator",
+  "version": "1.0.0",
+  "description": "Nintendo Switch Game Price Comparator comparing eShop ES, eShop JP and Instant Gaming",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev:server": "node server.js",
+    "dev:client": "vite",
+    "dev": "concurrently \"node server.js\" \"vite\"",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "nintendo",
+    "switch",
+    "eshop",
+    "price-comparison",
+    "instant-gaming"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "concurrently": "^8.2.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^5.2.11"
+  }
+}
