@@ -14,8 +14,11 @@ app.use(express.json());
 
 // In-memory caches
 let jpGamesCache = [];
-let exchangeRateCache = {
-  rate: 0.0054, // Fallback rate JPY -> EUR
+let exchangeRatesCache = {
+  rates: {
+    JPY: 0.0054, // Fallback rate JPY -> EUR
+    USD: 0.92,   // Fallback rate USD -> EUR
+  },
   lastUpdated: 0
 };
 let isXmlLoading = false;
@@ -75,62 +78,69 @@ async function loadJpGamesXml() {
   }
 }
 
-// Fetch real-time JPY to EUR exchange rate
-async function getExchangeRate() {
+// Fetch real-time exchange rates (base EUR)
+async function getExchangeRates() {
   const now = Date.now();
   const ONE_HOUR = 60 * 60 * 1000;
   
-  if (now - exchangeRateCache.lastUpdated < ONE_HOUR && exchangeRateCache.rate > 0) {
-    return exchangeRateCache.rate;
+  if (now - exchangeRatesCache.lastUpdated < ONE_HOUR) {
+    return exchangeRatesCache.rates;
   }
   
   try {
-    console.log('Fetching live JPY to EUR exchange rate...');
-    const res = await fetch('https://open.er-api.com/v6/latest/JPY');
-    if (!res.ok) throw new Error('Failed to fetch exchange rate');
+    console.log('Fetching live exchange rates from EUR base...');
+    const res = await fetch('https://open.er-api.com/v6/latest/EUR');
+    if (!res.ok) throw new Error('Failed to fetch exchange rates');
     const json = await res.json();
-    if (json && json.rates && json.rates.EUR) {
-      exchangeRateCache.rate = json.rates.EUR;
-      exchangeRateCache.lastUpdated = now;
-      console.log(`Updated exchange rate: 1 JPY = ${exchangeRateCache.rate} EUR`);
+    if (json && json.rates) {
+      if (json.rates.JPY) {
+        exchangeRatesCache.rates.JPY = parseFloat((1 / json.rates.JPY).toFixed(6));
+      }
+      if (json.rates.USD) {
+        exchangeRatesCache.rates.USD = parseFloat((1 / json.rates.USD).toFixed(6));
+      }
+      exchangeRatesCache.lastUpdated = now;
+      console.log(`Updated exchange rates: JPY->EUR = ${exchangeRatesCache.rates.JPY}, USD->EUR = ${exchangeRatesCache.rates.USD}`);
     }
   } catch (err) {
-    console.error('Error updating exchange rate, using cached value:', err.message);
+    console.error('Error updating exchange rates, using cached values:', err.message);
   }
-  return exchangeRateCache.rate;
+  return exchangeRatesCache.rates;
+}
+
+// Extract the core 4-character code of a Switch game (e.g. HACPAXEAB -> AXEA, HACAXEAA -> AXEA)
+function extractCoreCode(productCode) {
+  if (!productCode) return null;
+  const clean = productCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!clean.startsWith('HAC')) return null;
+  
+  if (clean.length === 9) {
+    return clean.slice(4, 8);
+  } else if (clean.length === 8) {
+    return clean.slice(3, 7);
+  }
+  
+  if (clean.length > 8) {
+    return clean.slice(4, 8);
+  } else if (clean.length >= 7) {
+    return clean.slice(3, 7);
+  }
+  return null;
 }
 
 // Map EU code (e.g. HACPAR3NA) to JP Game info
 function mapEuCodeToJpGame(euProductCode) {
   if (!euProductCode || jpGamesCache.length === 0) return null;
   
-  // Clean product code
-  const cleanCode = euProductCode.trim().toUpperCase();
+  const euCore = extractCoreCode(euProductCode);
+  if (!euCore) return null;
   
-  // Attempt 1: Standard layout mapping (drop prefix 'HACP' and prepend 'HAC')
-  // EU: HACP-AR3NA (represented as HACPAR3NA) -> JP: HAC-AR3NA (represented as HACAR3NA)
-  if (cleanCode.startsWith('HACP')) {
-    const suffix = cleanCode.slice(4); // e.g. AR3NA or BDGEA
-    const jpCandidate = 'HAC' + suffix;
-    const found = jpGamesCache.find(g => g.initialCode === jpCandidate);
-    if (found) return found;
-  }
+  const found = jpGamesCache.find(g => {
+    const jpCore = extractCoreCode(g.initialCode);
+    return jpCore === euCore;
+  });
   
-  // Attempt 2: Match by core 4-character ID (indices 4-7 for HACP, indices 3-6 for HAC)
-  let coreCode = '';
-  if (cleanCode.startsWith('HACP') && cleanCode.length >= 8) {
-    coreCode = cleanCode.slice(4, 8);
-  } else if (cleanCode.startsWith('HAC') && cleanCode.length >= 7) {
-    coreCode = cleanCode.slice(3, 7);
-  }
-  
-  if (coreCode && coreCode.length === 4) {
-    // Find a JP game containing the core code in its InitialCode
-    const found = jpGamesCache.find(g => g.initialCode.includes(coreCode));
-    if (found) return found;
-  }
-  
-  return null;
+  return found || null;
 }
 
 // In-memory cache for mapping Title ID -> JP NSUID
@@ -164,7 +174,7 @@ async function resolveJpGameInfo(applicationId, euProductCode) {
       const res = await fetch(url, { redirect: 'manual' });
       const location = res.headers.get('location');
       if (location) {
-        const nsuidMatch = location.match(/\/titles\/(\d+)/);
+        const nsuidMatch = location.match(/(700\d{11})/);
         if (nsuidMatch) {
           const jpNsuid = nsuidMatch[1];
           titleIdToJpNsuidCache[applicationId] = jpNsuid;
@@ -184,6 +194,36 @@ async function resolveJpGameInfo(applicationId, euProductCode) {
     }
   }
 
+  return null;
+}
+
+// In-memory cache for mapping Title ID -> US NSUID
+const titleIdToUsNsuidCache = {};
+
+// Resolve US NSUID, falling back to Title ID redirect
+async function resolveUsNsuid(applicationId) {
+  if (!applicationId) return null;
+  
+  const cachedNsuid = titleIdToUsNsuidCache[applicationId];
+  if (cachedNsuid) return cachedNsuid;
+  
+  try {
+    const url = `https://ec.nintendo.com/apps/${applicationId}/US`;
+    console.log(`Resolving US NSUID for Title ID ${applicationId} via: ${url}`);
+    const res = await fetch(url, { redirect: 'manual' });
+    const location = res.headers.get('location');
+    if (location) {
+      const nsuidMatch = location.match(/(700\d{11})/);
+      if (nsuidMatch) {
+        const usNsuid = nsuidMatch[1];
+        titleIdToUsNsuidCache[applicationId] = usNsuid;
+        console.log(`Resolved Title ID ${applicationId} -> US NSUID ${usNsuid}`);
+        return usNsuid;
+      }
+    }
+  } catch (err) {
+    console.error(`Failed to resolve US NSUID for Title ID ${applicationId}:`, err.message);
+  }
   return null;
 }
 
@@ -299,7 +339,7 @@ app.get('/api/search', async (req, res) => {
       loadJpGamesXml();
     }
 
-    const eurRate = await getExchangeRate();
+    const fxRates = await getExchangeRates();
 
     // 1. Search Nintendo of Europe (returns matching titles, ES NSUIDs, and product codes)
     const euSearchUrl = `https://search.nintendo-europe.com/en/select?q=${encodeURIComponent(query)}&fq=type:GAME%20AND%20system_type:nintendoswitch*&wt=json&rows=10`;
@@ -329,6 +369,9 @@ app.get('/api/search', async (req, res) => {
 
       // Find JP equivalent (fast local mapping first, then Title ID redirect fallback)
       const jpGameInfo = await resolveJpGameInfo(applicationId, productCode);
+
+      // Find US equivalent (Title ID redirect)
+      const usNsuid = await resolveUsNsuid(applicationId);
       
       return {
         title,
@@ -343,7 +386,8 @@ app.get('/api/search', async (req, res) => {
           nsuid: jpGameInfo.nsuid,
           initialCode: jpGameInfo.initialCode,
           screenshot: jpGameInfo.screenshot
-        } : null
+        } : null,
+        usNsuid: usNsuid
       };
     });
 
@@ -353,17 +397,29 @@ app.get('/api/search', async (req, res) => {
     const pricePromises = resolvedGames.map(async (game) => {
       const esPricePromise = fetchNintendoPrice('ES', game.euNsuid);
       const jpPricePromise = game.jpGame ? fetchNintendoPrice('JP', game.jpGame.nsuid) : Promise.resolve(null);
+      const usPricePromise = game.usNsuid ? fetchNintendoPrice('US', game.usNsuid) : Promise.resolve(null);
       
-      const [esPrice, jpPrice] = await Promise.all([esPricePromise, jpPricePromise]);
+      const [esPrice, jpPrice, usPrice] = await Promise.all([esPricePromise, jpPricePromise, usPricePromise]);
       
       // Format JP price in EUR
       let jpPriceInEur = null;
       let jpDiscountPriceInEur = null;
       
       if (jpPrice) {
-        jpPriceInEur = parseFloat((jpPrice.regularPrice * eurRate).toFixed(2));
+        jpPriceInEur = parseFloat((jpPrice.regularPrice * fxRates.JPY).toFixed(2));
         if (jpPrice.discountPrice) {
-          jpDiscountPriceInEur = parseFloat((jpPrice.discountPrice * eurRate).toFixed(2));
+          jpDiscountPriceInEur = parseFloat((jpPrice.discountPrice * fxRates.JPY).toFixed(2));
+        }
+      }
+
+      // Format US price in EUR
+      let usPriceInEur = null;
+      let usDiscountPriceInEur = null;
+      
+      if (usPrice) {
+        usPriceInEur = parseFloat((usPrice.regularPrice * fxRates.USD).toFixed(2));
+        if (usPrice.discountPrice) {
+          usDiscountPriceInEur = parseFloat((usPrice.discountPrice * fxRates.USD).toFixed(2));
         }
       }
 
@@ -379,6 +435,12 @@ app.get('/api/search', async (req, res) => {
             finalPrice: jpPrice.discountPrice !== null ? jpPrice.discountPrice : jpPrice.regularPrice,
             priceInEur: jpPriceInEur,
             finalPriceInEur: jpDiscountPriceInEur !== null ? jpDiscountPriceInEur : jpPriceInEur
+          } : null,
+          us: usPrice ? {
+            ...usPrice,
+            finalPrice: usPrice.discountPrice !== null ? usPrice.discountPrice : usPrice.regularPrice,
+            priceInEur: usPriceInEur,
+            finalPriceInEur: usDiscountPriceInEur !== null ? usDiscountPriceInEur : usPriceInEur
           } : null
         }
       };
@@ -390,13 +452,8 @@ app.get('/api/search', async (req, res) => {
     ]);
 
     // 5. Build final structured results
-    // We will return the list of eShop games, each containing its compared prices
-    // and also return a list of relevant Instant Gaming products found, 
-    // or try to match them dynamically to the eShop games based on string similarity.
-    
     const results = gamesWithPrices.map(game => {
       // Find matching Instant Gaming offer
-      // Simple matcher: check if the Instant Gaming title contains significant words of the eShop title
       const cleanTitle = game.title.toLowerCase().replace(/[^a-z0-9]/g, ' ');
       const words = cleanTitle.split(' ').filter(w => w.length > 3);
       
@@ -430,6 +487,14 @@ app.get('/api/search', async (req, res) => {
         }
       }
 
+      if (game.prices.us && game.prices.us.finalPriceInEur) {
+        const usPrice = game.prices.us.finalPriceInEur;
+        if (usPrice < minPrice) {
+          minPrice = usPrice;
+          cheapest = 'eShop US';
+        }
+      }
+
       if (matchingIg && matchingIg.price) {
         const igPrice = matchingIg.price;
         if (igPrice < minPrice && matchingIg.inStock) {
@@ -457,7 +522,7 @@ app.get('/api/search', async (req, res) => {
     });
 
     res.json({
-      exchangeRate: eurRate,
+      exchangeRates: fxRates,
       games: results,
       unmatchedIg: igGames.filter(ig => !results.some(r => r.prices.ig && r.prices.ig.url === ig.url))
     });
@@ -468,6 +533,181 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
+// Route to get current prices for watchlisted games
+app.get('/api/watchlist', async (req, res) => {
+  const idsParam = req.query.ids;
+  if (!idsParam) {
+    return res.json({ games: [] });
+  }
+
+  const nsuids = idsParam.split(',').map(id => id.trim()).filter(id => /^\d+$/.test(id));
+  if (nsuids.length === 0) {
+    return res.json({ games: [] });
+  }
+
+  try {
+    const fxRates = await getExchangeRates();
+
+    // Query Nintendo Europe by NSUIDs
+    const idQuery = nsuids.join(' OR ');
+    const euSearchUrl = `https://search.nintendo-europe.com/en/select?q=*&fq=type:GAME%20AND%20nsuid_txt:(${encodeURIComponent(idQuery)})&wt=json&rows=50`;
+    console.log(`Querying EU eShop Watchlist: ${euSearchUrl}`);
+
+    const euRes = await fetch(euSearchUrl);
+    if (!euRes.ok) throw new Error('Nintendo Europe search API failed for watchlist');
+    const euJson = await euRes.json();
+
+    const docs = (euJson.response && euJson.response.docs) || [];
+    console.log(`Found ${docs.length} watchlisted games in EU eShop.`);
+
+    // Match them to Instant Gaming using their titles in parallel
+    const igPromises = docs.map(doc => scrapeInstantGaming(doc.title));
+    const igResultsArray = await Promise.all(igPromises);
+
+    // Process each game
+    const resolvedGamesPromises = docs.map(async (doc, index) => {
+      const title = doc.title;
+      const euNsuid = doc.nsuid_txt ? doc.nsuid_txt[0] : null;
+      const productCode = doc.product_code_txt ? doc.product_code_txt[0] : null;
+      const applicationId = doc.application_id_s || null;
+      const publisher = doc.publisher || doc.maker || 'Nintendo';
+      const releaseDate = doc.release_date_on_retail || doc.dates_released_dts?.[0] || null;
+
+      if (!euNsuid) return null;
+
+      const jpGameInfo = await resolveJpGameInfo(applicationId, productCode);
+      const usNsuid = await resolveUsNsuid(applicationId);
+
+      const esPricePromise = fetchNintendoPrice('ES', euNsuid);
+      const jpPricePromise = jpGameInfo ? fetchNintendoPrice('JP', jpGameInfo.nsuid) : Promise.resolve(null);
+      const usPricePromise = usNsuid ? fetchNintendoPrice('US', usNsuid) : Promise.resolve(null);
+
+      const [esPrice, jpPrice, usPrice] = await Promise.all([esPricePromise, jpPricePromise, usPricePromise]);
+
+      let jpPriceInEur = null;
+      let jpDiscountPriceInEur = null;
+      if (jpPrice) {
+        jpPriceInEur = parseFloat((jpPrice.regularPrice * fxRates.JPY).toFixed(2));
+        if (jpPrice.discountPrice) {
+          jpDiscountPriceInEur = parseFloat((jpPrice.discountPrice * fxRates.JPY).toFixed(2));
+        }
+      }
+
+      let usPriceInEur = null;
+      let usDiscountPriceInEur = null;
+      if (usPrice) {
+        usPriceInEur = parseFloat((usPrice.regularPrice * fxRates.USD).toFixed(2));
+        if (usPrice.discountPrice) {
+          usDiscountPriceInEur = parseFloat((usPrice.discountPrice * fxRates.USD).toFixed(2));
+        }
+      }
+
+      const igGames = igResultsArray[index] || [];
+      const cleanTitle = title.toLowerCase().replace(/[^a-z0-9]/g, ' ');
+      const words = cleanTitle.split(' ').filter(w => w.length > 3);
+      
+      let matchingIg = null;
+      if (words.length > 0) {
+        matchingIg = igGames.find(ig => {
+          const igTitle = ig.name.toLowerCase();
+          const matchedWords = words.filter(word => igTitle.includes(word));
+          return (matchedWords.length / words.length) >= 0.6;
+        });
+      }
+
+      // Determine cheapest
+      let cheapest = null;
+      let minPrice = Infinity;
+
+      if (esPrice) {
+        const esVal = esPrice.discountPrice !== null ? esPrice.discountPrice : esPrice.regularPrice;
+        if (esVal < minPrice) {
+          minPrice = esVal;
+          cheapest = 'eShop ES';
+        }
+      }
+
+      if (jpPrice && (jpDiscountPriceInEur !== null ? jpDiscountPriceInEur : jpPriceInEur) !== null) {
+        const jpVal = jpDiscountPriceInEur !== null ? jpDiscountPriceInEur : jpPriceInEur;
+        if (jpVal < minPrice) {
+          minPrice = jpVal;
+          cheapest = 'eShop JP';
+        }
+      }
+
+      if (usPrice && (usDiscountPriceInEur !== null ? usDiscountPriceInEur : usPriceInEur) !== null) {
+        const usVal = usDiscountPriceInEur !== null ? usDiscountPriceInEur : usPriceInEur;
+        if (usVal < minPrice) {
+          minPrice = usVal;
+          cheapest = 'eShop US';
+        }
+      }
+
+      if (matchingIg && matchingIg.price) {
+        if (matchingIg.price < minPrice && matchingIg.inStock) {
+          minPrice = matchingIg.price;
+          cheapest = 'Instant Gaming';
+        }
+      }
+
+      return {
+        title,
+        euNsuid,
+        productCode,
+        applicationId,
+        publisher,
+        releaseDate,
+        imageUrl: doc.image_url_h2x1_s || doc.image_url || null,
+        jpGame: jpGameInfo ? {
+          title: jpGameInfo.titleName || title,
+          nsuid: jpGameInfo.nsuid,
+          initialCode: jpGameInfo.initialCode,
+          screenshot: jpGameInfo.screenshot
+        } : null,
+        usNsuid: usNsuid,
+        prices: {
+          es: esPrice ? {
+            ...esPrice,
+            finalPrice: esPrice.discountPrice !== null ? esPrice.discountPrice : esPrice.regularPrice
+          } : null,
+          jp: jpPrice ? {
+            ...jpPrice,
+            finalPrice: jpPrice.discountPrice !== null ? jpPrice.discountPrice : jpPrice.regularPrice,
+            priceInEur: jpPriceInEur,
+            finalPriceInEur: jpDiscountPriceInEur !== null ? jpDiscountPriceInEur : jpPriceInEur
+          } : null,
+          us: usPrice ? {
+            ...usPrice,
+            finalPrice: usPrice.discountPrice !== null ? usPrice.discountPrice : usPrice.regularPrice,
+            priceInEur: usPriceInEur,
+            finalPriceInEur: usDiscountPriceInEur !== null ? usDiscountPriceInEur : usPriceInEur
+          } : null,
+          ig: matchingIg ? {
+            price: matchingIg.price,
+            discountPercent: matchingIg.discount,
+            url: matchingIg.url,
+            inStock: matchingIg.inStock
+          } : null
+        },
+        cheapest: minPrice !== Infinity ? {
+          platform: cheapest,
+          price: minPrice
+        } : null
+      };
+    });
+
+    const results = (await Promise.all(resolvedGamesPromises)).filter(Boolean);
+
+    res.json({
+      exchangeRates: fxRates,
+      games: results
+    });
+  } catch (error) {
+    console.error('Watchlist router error:', error);
+    res.status(500).json({ error: error.message || 'An error occurred fetching watchlist prices' });
+  }
+});
+
 // XML status endpoint
 app.get('/api/status', (req, res) => {
   res.json({
@@ -475,7 +715,7 @@ app.get('/api/status', (req, res) => {
     jpXmlSize: jpGamesCache.length,
     isLoading: isXmlLoading,
     error: xmlLoadError,
-    exchangeRate: exchangeRateCache.rate
+    exchangeRates: exchangeRatesCache.rates
   });
 });
 
