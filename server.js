@@ -230,7 +230,7 @@ async function resolveUsNsuid(applicationId) {
 // Scrape Instant Gaming for Switch games
 async function scrapeInstantGaming(query) {
   const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-  const url = `https://www.instant-gaming.com/es/search/?q=${encodeURIComponent(query)}`;
+  const url = `https://www.instant-gaming.com/es/busquedas/?q=${encodeURIComponent(query)}`;
   
   try {
     console.log(`Querying Instant Gaming: ${url}`);
