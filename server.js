@@ -2,6 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import puppeteer from 'puppeteer';
+dotenv.config();
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +25,10 @@ let exchangeRatesCache = {
   },
   lastUpdated: 0
 };
+
+// In-memory cache for physical offers (30 min TTL)
+const physicalCache = new Map();
+
 let isXmlLoading = false;
 let xmlLoadError = null;
 
@@ -106,6 +114,165 @@ async function getExchangeRates() {
     console.error('Error updating exchange rates, using cached values:', err.message);
   }
   return exchangeRatesCache.rates;
+}
+
+// Global browser instance for Puppeteer scrapers
+let browserPromise = null;
+function getBrowser() {
+  if (!browserPromise) {
+    console.log('Launching Puppeteer browser...');
+    browserPromise = puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
+    });
+  }
+  return browserPromise;
+}
+
+// --- Physical price scrapers ---
+const SCRAPE_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept-Language': 'es-ES,es;q=0.9',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+};
+
+/** Extract first numeric price (€) from an HTML string. */
+function extractPrice(html, pattern) {
+  const m = html.match(pattern);
+  if (!m) return null;
+  const raw = m[1].replace(/\./g, '').replace(',', '.');
+  const val = parseFloat(raw);
+  return isNaN(val) ? null : val;
+}
+
+async function scrapeAmazonEs(title) {
+  try {
+    const searchQ = encodeURIComponent(`Nintendo Switch ${title} juego fisico`);
+    const url = `https://www.amazon.es/s?k=${searchQ}&rh=n%3A599385031`; // node 599385031 = Nintendo Switch juegos
+    const browser = await getBrowser();
+    const page = await browser.newPage();
+    // Use random user agent to avoid basic blocks
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    
+    const result = await page.evaluate(() => {
+      const el = document.querySelector('.s-result-item[data-component-type="s-search-result"]');
+      if (!el) return null;
+      const priceEl = el.querySelector('.a-price .a-offscreen');
+      const linkEl = el.querySelector('a.a-link-normal');
+      if (!priceEl) return null;
+      
+      return {
+        priceStr: priceEl.innerText,
+        url: linkEl ? linkEl.href : null
+      };
+    });
+    await page.close();
+
+    if (!result) return null;
+
+    // Parse price like "67,90 €" or "67.90" -> 67.90
+    const raw = result.priceStr.replace(/[^\d,.]/g, '').replace(',', '.');
+    const price = parseFloat(raw);
+    if (isNaN(price) || price <= 0) return null;
+
+    return { seller: 'Amazon.es', price, url: result.url || url, inStock: true, format: 'Físico' };
+  } catch (err) {
+    console.warn('Amazon.es scrape failed:', err.message);
+    return null;
+  }
+}
+
+async function scrapeFnacEs(title) {
+  try {
+    const searchQ = encodeURIComponent(`${title} Nintendo Switch`);
+    const url = `https://www.fnac.es/SearchResult/ResultList.aspx?Search=${searchQ}&stype=0&SCat=7!1`;
+    const browser = await getBrowser();
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    const result = await page.evaluate(() => {
+      const el = document.querySelector('.Article-item');
+      if (!el) return null;
+      const priceEl = el.querySelector('.userPrice');
+      const linkEl = el.querySelector('.Article-title a');
+      if (!priceEl) return null;
+      return {
+        priceStr: priceEl.innerText,
+        url: linkEl ? linkEl.href : null
+      };
+    });
+    await page.close();
+
+    if (!result) return null;
+    const raw = result.priceStr.replace(/[^\d,.]/g, '').replace(',', '.');
+    const price = parseFloat(raw);
+    if (isNaN(price) || price <= 0) return null;
+
+    return { seller: 'Fnac.es', price, url: result.url || url, inStock: true, format: 'Físico' };
+  } catch (err) {
+    console.warn('Fnac.es scrape failed:', err.message);
+    return null;
+  }
+}
+
+async function scrapeMediaMarktEs(title) {
+  try {
+    const searchQ = encodeURIComponent(`${title} Nintendo Switch`);
+    const url = `https://www.mediamarkt.es/es/search.html?query=${searchQ}`;
+    const browser = await getBrowser();
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    const result = await page.evaluate(() => {
+      const el = document.querySelector('div[data-test="mms-search-srp-productlist"] div[data-test="mms-product-card"]');
+      if (!el) return null;
+      const priceEl = el.querySelector('span[data-test="product-price"]');
+      const linkEl = el.querySelector('a[data-test="mms-product-list-item-link"]');
+      if (!priceEl) return null;
+      return {
+        priceStr: priceEl.innerText,
+        url: linkEl ? linkEl.href : null
+      };
+    });
+    await page.close();
+
+    if (!result) return null;
+    const raw = result.priceStr.replace(/[^\d,.-]/g, '').replace(',', '.');
+    const price = parseFloat(raw);
+    if (isNaN(price) || price <= 0) return null;
+
+    return { seller: 'MediaMarkt.es', price, url: result.url || url, inStock: true, format: 'Físico' };
+  } catch (err) {
+    console.warn('MediaMarkt.es scrape failed:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Fetch physical game offers from Amazon.es, Fnac.es and MediaMarkt.es in parallel.
+ * Results are cached 30 minutes per game title.
+ */
+async function fetchPhysicalOffers(title) {
+  const cacheKey = title.toLowerCase().trim();
+  const cached = physicalCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && cached.expiry > now) return cached.data;
+
+  console.log(`Fetching physical prices for: "${title}"`);
+  const [amazon, fnac, mediaMarkt] = await Promise.all([
+    scrapeAmazonEs(title),
+    scrapeFnacEs(title),
+    scrapeMediaMarktEs(title),
+  ]);
+
+  const offers = [amazon, fnac, mediaMarkt].filter(Boolean);
+  console.log(`Physical offers found for "${title}": ${offers.length} (${offers.map(o => o.seller).join(', ')})`);
+
+  physicalCache.set(cacheKey, { data: offers, expiry: now + 30 * 60 * 1000 });
+  return offers;
 }
 
 // Extract the core 4-character code of a Switch game (e.g. HACPAXEAB -> AXEA, HACAXEAA -> AXEA)
@@ -446,13 +613,14 @@ app.get('/api/search', async (req, res) => {
       };
     });
 
-    const [gamesWithPrices, igGames] = await Promise.all([
+    const [gamesWithPrices, igGames, physicalOffersArray] = await Promise.all([
       Promise.all(pricePromises),
-      igPromise
+      igPromise,
+      Promise.all(resolvedGames.map(game => fetchPhysicalOffers(game.title)))
     ]);
 
     // 5. Build final structured results
-    const results = gamesWithPrices.map(game => {
+    const results = gamesWithPrices.map((game, index) => {
       // Find matching Instant Gaming offer
       const cleanTitle = game.title.toLowerCase().replace(/[^a-z0-9]/g, ' ');
       const words = cleanTitle.split(' ').filter(w => w.length > 3);
@@ -503,6 +671,17 @@ app.get('/api/search', async (req, res) => {
         }
       }
 
+      // Check physical offers
+      const physicalOffers = physicalOffersArray[index] || [];
+      if (physicalOffers.length > 0) {
+        const cheapestPhysical = physicalOffers.reduce((best, o) =>
+          o.inStock && o.price < (best ? best.price : Infinity) ? o : best, null);
+        if (cheapestPhysical && cheapestPhysical.price < minPrice) {
+          minPrice = cheapestPhysical.price;
+          cheapest = cheapestPhysical.seller;
+        }
+      }
+
       return {
         ...game,
         prices: {
@@ -517,7 +696,8 @@ app.get('/api/search', async (req, res) => {
         cheapest: minPrice !== Infinity ? {
           platform: cheapest,
           price: minPrice
-        } : null
+        } : null,
+        physicalOffers
       };
     });
 
@@ -692,7 +872,8 @@ app.get('/api/watchlist', async (req, res) => {
         cheapest: minPrice !== Infinity ? {
           platform: cheapest,
           price: minPrice
-        } : null
+        } : null,
+        physicalOffers: await fetchPhysicalOffers(title)
       };
     });
 

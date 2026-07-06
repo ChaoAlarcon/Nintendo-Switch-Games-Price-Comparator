@@ -1,13 +1,25 @@
 import React, { useState, useEffect } from 'react';
 
-// Quick suggestions for games
+import zeldaLogo from './games_logos/zelda.png';
+import marioLogo from './games_logos/super-mario-seeklogo.png';
+
+
+
 const SUGGESTIONS = [
-  { name: 'Zelda', label: '🛡️ Zelda' },
-  { name: 'Mario Odyssey', label: '🍄 Mario Odyssey' },
-  { name: 'Metroid Dread', label: '🚀 Metroid' },
-  { name: 'Animal Crossing', label: '🏝️ Animal Crossing' },
-  { name: 'Smash Bros', label: '🥊 Smash Bros' }
+  { name: 'Zelda', image: zeldaLogo },
+  { name: 'Mario', image: marioLogo },
+
+
 ];
+
+export const GameList = () => {
+  return (
+    <div style={{ padding: '50px', background: 'yellow' }}>
+      <h1>¡Hola! Si ves esto, el componente sí se está cargando.</h1>
+      <img src="https://via.placeholder.com/150" alt="Test" />
+    </div>
+  );
+};
 
 function App() {
   const [query, setQuery] = useState('');
@@ -64,7 +76,7 @@ function App() {
 
   const handleSearch = async (searchQuery) => {
     if (!searchQuery || searchQuery.trim().length < 2) return;
-    
+
     setLoading(true);
     setError(null);
     try {
@@ -140,7 +152,7 @@ function App() {
   // Filter and sort items locally
   const getProcessedGames = (gamesList) => {
     if (!gamesList) return [];
-    
+
     let filtered = [...gamesList];
 
     // Filter by sale
@@ -202,9 +214,14 @@ function App() {
     const jpPrice = game.prices.jp;
     const usPrice = game.prices.us;
     const igPrice = game.prices.ig;
-    
-    const coverSrc = game.imageUrl 
-      ? game.imageUrl 
+    const physicalOffers = game.physicalOffers || [];
+    const cheapestPhysical = physicalOffers.length > 0
+      ? physicalOffers.reduce((best, o) => o.inStock && o.price < (best ? best.price : Infinity) ? o : best, null)
+      : null;
+    const isPhysicalCheapest = game.cheapest && physicalOffers.some(o => o.seller === game.cheapest.platform);
+
+    const coverSrc = game.imageUrl
+      ? game.imageUrl
       : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="140" height="196" viewBox="0 0 140 196" fill="%2312141D"%3E%3Crect width="100%" height="100%"/%3E%3Cpath d="M70 75a15 15 0 1 0 0 30 15 15 0 0 0 0-30zm-20-40h40v15H50z" fill="%232D3043"/%3E%3C/svg%3E';
 
     const isFav = watchlistIds.includes(game.euNsuid);
@@ -221,9 +238,9 @@ function App() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
                 <h2 className="game-title">{game.title}</h2>
-                <button 
-                  type="button" 
-                  onClick={() => toggleWatchlist(game.euNsuid)} 
+                <button
+                  type="button"
+                  onClick={() => toggleWatchlist(game.euNsuid)}
                   className={`watchlist-btn ${isFav ? 'active' : ''}`}
                   style={{
                     background: 'none',
@@ -248,7 +265,7 @@ function App() {
                   </svg>
                 </button>
               </div>
-              
+
               {game.jpGame && game.jpGame.title && game.jpGame.title !== game.title && (
                 <p style={{ fontSize: '0.85rem', color: 'var(--switch-blue)', marginBottom: '0.5rem', fontStyle: 'italic' }}>
                   Título JP: {game.jpGame.title}
@@ -266,7 +283,7 @@ function App() {
                 </span>
               </div>
             </div>
-            
+
             {game.cheapest && (
               <div style={{
                 display: 'inline-flex',
@@ -290,6 +307,80 @@ function App() {
 
         {/* Pricing grid */}
         <div className="comparison-grid">
+
+          {/* Precios Físicos */}
+          <div className={`price-card ${isPhysicalCheapest ? 'cheapest' : ''}`} style={{ gridColumn: physicalOffers.length === 0 ? undefined : undefined }}>
+            <div className="shop-name">
+              <span style={{ color: '#8b5cf6' }}>💿</span>
+              Físico (Cartucho)
+            </div>
+            {cheapestPhysical ? (
+              <div className="price-wrapper">
+                <div className="current-price">{formatEUR(cheapestPhysical.price)}</div>
+                <div className="jp-price-sub" style={{ color: 'var(--success)' }}>Mejor precio</div>
+                <div style={{ width: '100%', marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {physicalOffers.map((offer, i) => (
+                    <a
+                      key={i}
+                      href={offer.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '0.35rem 0.6rem',
+                        borderRadius: '6px',
+                        background: offer.seller === cheapestPhysical.seller
+                          ? 'rgba(139, 92, 246, 0.15)'
+                          : 'rgba(255,255,255,0.04)',
+                        border: offer.seller === cheapestPhysical.seller
+                          ? '1px solid rgba(139, 92, 246, 0.4)'
+                          : '1px solid rgba(255,255,255,0.07)',
+                        textDecoration: 'none',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.82rem',
+                        transition: 'background 0.2s',
+                      }}
+                    >
+                      <span style={{ fontWeight: 500 }}>{offer.seller}</span>
+                      <span style={{ fontWeight: 700, color: offer.seller === cheapestPhysical.seller ? '#a78bfa' : 'var(--text-primary)' }}>
+                        {formatEUR(offer.price)}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div style={{ color: 'var(--text-muted)', margin: 'auto 0', textAlign: 'center', fontSize: '0.9rem' }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>🔍</div>
+                No encontrado
+              </div>
+            )}
+            {cheapestPhysical && (
+              <a
+                href={cheapestPhysical.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shop-link-btn"
+                style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}
+              >
+                Ver mejor precio
+              </a>
+            )}
+            {!cheapestPhysical && (
+              <a
+                href={`https://www.amazon.es/s?k=Nintendo+Switch+${encodeURIComponent(game.title)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shop-link-btn"
+                style={{ opacity: 0.6 }}
+              >
+                Buscar en Amazon
+              </a>
+            )}
+          </div>
+
           {/* Nintendo eShop España */}
           <div className={`price-card ${game.cheapest && game.cheapest.platform === 'eShop ES' ? 'cheapest' : ''}`}>
             <div className="shop-name">
@@ -313,10 +404,10 @@ function App() {
             ) : (
               <div style={{ color: 'var(--text-muted)', margin: 'auto 0' }}>No disponible</div>
             )}
-            <a 
-              href={esPrice ? `https://www.nintendo.es/Buscar/Buscar-299117.html?q=${encodeURIComponent(game.title)}` : '#'} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href={esPrice ? `https://www.nintendo.es/Buscar/Buscar-299117.html?q=${encodeURIComponent(game.title)}` : '#'}
+              target="_blank"
+              rel="noopener noreferrer"
               className="shop-link-btn"
               style={!esPrice ? { opacity: 0.5, pointerEvents: 'none' } : {}}
             >
@@ -353,10 +444,10 @@ function App() {
                 {game.jpGame ? 'No disponible' : 'No mapeado en JP'}
               </div>
             )}
-            <a 
-              href={game.jpGame ? `https://store-jp.nintendo.com/item/software/${game.jpGame.nsuid}` : '#'} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href={game.jpGame ? `https://store-jp.nintendo.com/item/software/${game.jpGame.nsuid}` : '#'}
+              target="_blank"
+              rel="noopener noreferrer"
               className="shop-link-btn"
               style={!game.jpGame ? { opacity: 0.5, pointerEvents: 'none' } : {}}
             >
@@ -391,10 +482,10 @@ function App() {
             ) : (
               <div style={{ color: 'var(--text-muted)', margin: 'auto 0' }}>No disponible</div>
             )}
-            <a 
-              href={usPrice ? `https://www.nintendo.com/us/search/#q=${encodeURIComponent(game.title)}` : '#'} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href={usPrice ? `https://www.nintendo.com/us/search/#q=${encodeURIComponent(game.title)}` : '#'}
+              target="_blank"
+              rel="noopener noreferrer"
               className="shop-link-btn"
               style={!usPrice ? { opacity: 0.5, pointerEvents: 'none' } : {}}
             >
@@ -427,20 +518,23 @@ function App() {
             ) : (
               <div style={{ color: 'var(--text-muted)', margin: 'auto 0' }}>No disponible</div>
             )}
-            <a 
-              href={igPrice ? igPrice.url : '#'} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href={igPrice ? igPrice.url : '#'}
+              target="_blank"
+              rel="noopener noreferrer"
               className="shop-link-btn"
               style={!igPrice ? { opacity: 0.5, pointerEvents: 'none' } : {}}
             >
               Comprar Clave
             </a>
           </div>
+
+
         </div>
       </div>
     );
   };
+
 
   const processedSearchResults = results ? getProcessedGames(results.games) : [];
   const processedWatchlistResults = getProcessedGames(watchlistData);
@@ -492,6 +586,9 @@ function App() {
               onClick={() => handleSuggestionClick(s.name)}
               disabled={loading}
               style={{
+                display: 'flex', // Añadido para alinear imagen y texto
+                alignItems: 'center',
+                gap: '8px',
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: '20px',
@@ -512,7 +609,9 @@ function App() {
                 e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
               }}
             >
-              {s.label}
+              {/* Añadimos la imagen dentro del botón */}
+              <img src={s.image} alt={s.name} style={{ width: '100px', height: 'auto' }} />
+
             </button>
           ))}
         </div>
@@ -522,9 +621,9 @@ function App() {
           <div className="controls-bar">
             <div className="control-group">
               <label htmlFor="sort-select">Ordenar por:</label>
-              <select 
-                id="sort-select" 
-                value={sortBy} 
+              <select
+                id="sort-select"
+                value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="control-select"
               >
@@ -535,24 +634,24 @@ function App() {
                 <option value="release_date">Fecha de Lanzamiento</option>
               </select>
             </div>
-            
+
             <div className="control-group filters">
               <label className="control-checkbox-label">
-                <input 
-                  type="checkbox" 
-                  checked={filterOnSale} 
-                  onChange={(e) => setFilterOnSale(e.target.checked)} 
+                <input
+                  type="checkbox"
+                  checked={filterOnSale}
+                  onChange={(e) => setFilterOnSale(e.target.checked)}
                   className="control-checkbox"
                 />
                 <span className="checkbox-custom"></span>
                 Solo en Oferta
               </label>
-              
+
               <label className="control-checkbox-label">
-                <input 
-                  type="checkbox" 
-                  checked={filterInStock} 
-                  onChange={(e) => setFilterInStock(e.target.checked)} 
+                <input
+                  type="checkbox"
+                  checked={filterInStock}
+                  onChange={(e) => setFilterInStock(e.target.checked)}
                   className="control-checkbox"
                 />
                 <span className="checkbox-custom"></span>
@@ -649,7 +748,7 @@ function App() {
               </svg>
               Tus Favoritos (Watchlist)
             </h2>
-            
+
             {watchlistLoading ? (
               <div className="loading-container" style={{ padding: '2rem' }}>
                 <div className="switch-loader">
