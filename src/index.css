@@ -1,21 +1,21 @@
 :root {
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  
+
   /* Color Palette */
   --bg-dark: #090a0f;
   --bg-darker: #050508;
   --card-bg: rgba(18, 20, 29, 0.7);
   --card-border: rgba(255, 255, 255, 0.08);
-  
+
   --switch-red: #e60012;
   --switch-red-glow: rgba(230, 0, 18, 0.4);
   --switch-blue: #00a0e9;
   --switch-blue-glow: rgba(0, 160, 233, 0.4);
-  
+
   --text-main: #f5f6fa;
   --text-secondary: #a0a5c0;
   --text-muted: #62677d;
-  
+
   --success: #2ecc71;
   --warning: #f1c40f;
 }
@@ -29,7 +29,7 @@
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-dark);
-  background-image: 
+  background-image:
     radial-gradient(at 0% 0%, rgba(0, 160, 233, 0.08) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(230, 0, 18, 0.08) 0px, transparent 50%);
   background-attachment: fixed;
@@ -44,13 +44,16 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--bg-darker);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--text-muted);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-secondary);
 }
@@ -78,7 +81,8 @@ body {
   position: relative;
 }
 
-.switch-logo-anim::before, .switch-logo-anim::after {
+.switch-logo-anim::before,
+.switch-logo-anim::after {
   content: '';
   height: 100%;
   border-radius: 6px;
@@ -109,7 +113,8 @@ body {
   border-left: 2px solid var(--bg-dark);
 }
 
-.switch-logo-anim .dot-l, .switch-logo-anim .dot-r {
+.switch-logo-anim .dot-l,
+.switch-logo-anim .dot-r {
   position: absolute;
   width: 6px;
   height: 6px;
@@ -181,7 +186,7 @@ body {
 
 .search-input:focus {
   border-color: var(--switch-red);
-  box-shadow: 
+  box-shadow:
     0 0 15px var(--switch-red-glow),
     inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
@@ -196,7 +201,7 @@ body {
   transition: all 0.3s ease;
 }
 
-.search-input:focus + .search-icon {
+.search-input:focus+.search-icon {
   color: var(--switch-red);
 }
 
@@ -255,14 +260,20 @@ body {
 }
 
 .game-cover {
-  width: 140px;
+  width: 300px;
   height: 196px;
+
   object-fit: cover;
+  object-position: center;
   border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-  background-color: var(--bg-darker);
-  border: 1px solid rgba(255,255,255,0.1);
-  flex-shrink: 0;
+  overflow: hidden;
+  /* si es un div contenedor */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: transform 0.2s ease;
+}
+
+.game-cover:hover {
+  transform: scale(1.04);
 }
 
 .game-info {
@@ -460,13 +471,14 @@ body {
   animation: pulse 1s ease-in-out infinite alternate;
 }
 
-.joycon-l, .joycon-r {
+.joycon-l,
+.joycon-r {
   width: 25px;
   height: 100%;
   border-radius: 6px;
   position: absolute;
   top: 0;
-  border: 2px solid rgba(255,255,255,0.1);
+  border: 2px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 0 20px currentColor;
 }
 
@@ -489,18 +501,35 @@ body {
 }
 
 @keyframes slideL {
-  0% { transform: translateY(-5px); }
-  100% { transform: translateY(5px); }
+  0% {
+    transform: translateY(-5px);
+  }
+
+  100% {
+    transform: translateY(5px);
+  }
 }
 
 @keyframes slideR {
-  0% { transform: translateY(5px); }
-  100% { transform: translateY(-5px); }
+  0% {
+    transform: translateY(5px);
+  }
+
+  100% {
+    transform: translateY(-5px);
+  }
 }
 
 @keyframes pulse {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  100% { transform: scale(1.05); opacity: 1; }
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
 }
 
 .no-results {
@@ -522,7 +551,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   padding: 0.4rem 0.8rem;
   border-radius: 20px;
   font-size: 0.8rem;
@@ -536,4 +565,24 @@ body {
   background: var(--success);
   border-radius: 50%;
   box-shadow: 0 0 8px var(--success);
+}
+
+/* CheckBox */
+
+.check {
+  margin-bottom: -7px;
+  margin-left: 15px;
+  width: 24px;
+  height: 24px;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid #888;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+.check.checked {
+  background: #22c55e;
+  border-color: #22c55e;
 }
