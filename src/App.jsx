@@ -15,6 +15,7 @@ import spainShop from "./images/SpainShop.png";
 import usaShop from "./images/UsaShop.png";
 import japanShop from "./images/JapanShop.png";
 import amazon from "./images/Amazon.png";
+import lupaIcon from "./images/lupa2.png";
 
 
 
@@ -238,7 +239,7 @@ function App() {
     const isFav = watchlistIds.includes(game.euNsuid);
 
     return (
-      <div key={game.euNsuid} className="game-card glass-panel" style={{ padding: 0, border: '1px solid var(--card-border)' }}>
+      <div key={game.euNsuid} className="game-card glass-panel" style={{ padding: 0, border: '3px solid #000' }}>
         {/* Game header details */}
         <div className="game-card-header">
           <img src={coverSrc} alt={`Portada de ${game.title}`} className="game-cover" onError={(e) => {
@@ -265,7 +266,7 @@ function App() {
                     transition: 'all 0.2s ease',
                   }}
                   onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'rgba(230, 0, 18, 0.08)';
+                    e.currentTarget.style.background = 'rgba(214, 0, 111, 0.1)';
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.background = 'none';
@@ -300,14 +301,15 @@ function App() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                background: 'rgba(46, 204, 113, 0.1)',
-                border: '1px solid rgba(46, 204, 113, 0.3)',
+                background: 'rgba(34, 197, 94, 0.12)',
+                border: '2px solid #000',
+                boxShadow: '2px 2px 0 #171717',
                 padding: '0.5rem 1rem',
                 borderRadius: '8px',
                 width: 'fit-content',
                 marginTop: '0.5rem'
               }}>
-                <span style={{ width: '8px', height: '8px', background: 'var(--success)', borderRadius: '50%' }}></span>
+                <span style={{ width: '8px', height: '8px', background: 'var(--success)', border: '1px solid #000', borderRadius: '50%' }}></span>
                 <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>
                   Mejor opción: <span style={{ color: 'var(--success)' }}>{formatEUR(game.cheapest.price)}</span> en {game.cheapest.platform}
                 </span>
@@ -323,7 +325,7 @@ function App() {
           <div className={`price-card ${isPhysicalCheapest ? 'cheapest' : ''}`} style={{ gridColumn: physicalOffers.length === 0 ? undefined : undefined }}>
             <div className="shop-name">
               <img src={amazon} style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
-              <h4 style={{ fontSize: '1.1rem', }}>Físico (Cartucho)</h4>
+              <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>Físico (Cartucho)</h4>
             </div>
             {cheapestPhysical ? (
               <div className="price-wrapper">
@@ -343,19 +345,19 @@ function App() {
                         padding: '0.35rem 0.6rem',
                         borderRadius: '6px',
                         background: offer.seller === cheapestPhysical.seller
-                          ? 'rgba(139, 92, 246, 0.15)'
-                          : 'rgba(255,255,255,0.04)',
+                          ? 'rgba(214, 0, 111, 0.1)'
+                          : 'rgba(0, 0, 0, 0.03)',
                         border: offer.seller === cheapestPhysical.seller
-                          ? '1px solid rgba(139, 92, 246, 0.4)'
-                          : '1px solid rgba(255,255,255,0.07)',
+                          ? '2px solid var(--switch-red)'
+                          : '1px solid rgba(0, 0, 0, 0.15)',
                         textDecoration: 'none',
-                        color: 'var(--text-primary)',
+                        color: 'var(--text-main)',
                         fontSize: '0.82rem',
                         transition: 'background 0.2s',
                       }}
                     >
                       <span style={{ fontWeight: 500 }}>{offer.seller}</span>
-                      <span style={{ fontWeight: 700, color: offer.seller === cheapestPhysical.seller ? '#a78bfa' : 'var(--text-primary)' }}>
+                      <span style={{ fontWeight: 700, color: offer.seller === cheapestPhysical.seller ? 'var(--switch-red)' : 'var(--text-main)' }}>
                         {formatEUR(offer.price)}
                       </span>
                     </a>
@@ -374,7 +376,7 @@ function App() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="shop-link-btn"
-                style={{ background: 'linear-gradient(135deg, #7c3aed, #a855f7)' }}
+                style={{ background: 'linear-gradient(135deg, var(--switch-blue), var(--switch-red))', color: '#fff' }}
               >
                 Ver mejor precio
               </a>
@@ -396,7 +398,7 @@ function App() {
           <div className={`price-card ${game.cheapest && game.cheapest.platform === 'eShop ES' ? 'cheapest' : ''}`}>
             <div className="shop-name">
               <img src={spainShop} style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
-              <h4 style={{ fontSize: '1.1rem', }}>eShop (ES)</h4>
+              <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>eShop (ES)</h4>
             </div>
             {esPrice ? (
               <div className="price-wrapper">
@@ -430,7 +432,7 @@ function App() {
           <div className={`price-card ${game.cheapest && game.cheapest.platform === 'eShop JP' ? 'cheapest' : ''}`}>
             <div className="shop-name">
               <img src={japanShop} style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
-              <h4 style={{ fontSize: '1.1rem', }}>eShop (JP)</h4>
+              <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>eShop (JP)</h4>
             </div>
             {jpPrice ? (
               <div className="price-wrapper">
@@ -470,7 +472,7 @@ function App() {
           <div className={`price-card ${game.cheapest && game.cheapest.platform === 'eShop US' ? 'cheapest' : ''}`}>
             <div className="shop-name">
               <img src={usaShop} style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
-              <h4 style={{ fontSize: '1.1rem', }}>eShop (US)</h4>
+              <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>eShop (US)</h4>
             </div>
             {usPrice ? (
               <div className="price-wrapper">
@@ -523,7 +525,7 @@ function App() {
                     <div className="jp-price-sub" style={{ color: 'var(--success)' }}>En Stock</div>
                   </>
                 ) : (
-                  <div style={{ color: '#ff4d4d', fontWeight: 600, fontSize: '1.2rem' }}>Agotado</div>
+                  <div style={{ color: '#c0392b', fontWeight: 600, fontSize: '1.2rem' }}>Agotado</div>
                 )}
               </div>
             ) : (
@@ -574,10 +576,7 @@ function App() {
             disabled={loading}
           />
           <span className="search-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
+            <img src={lupaIcon} alt="Buscar" />
           </span>
           {query && !loading && (
             <button type="button" onClick={clearSearch} className="search-clear" aria-label="Limpiar búsqueda">
@@ -600,24 +599,25 @@ function App() {
                 display: 'flex', // Añadido para alinear imagen y texto
                 alignItems: 'center',
                 gap: '8px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: '#fff',
+                border: '2px solid #000',
                 borderRadius: '20px',
                 padding: '0.4rem 1rem',
                 color: 'var(--text-main)',
-                cursor: 'pointer',
+                cursor: "url('black-12/14 cursor.cur') 5 5, pointer",
                 fontFamily: 'var(--font-sans)',
                 fontWeight: '500',
                 fontSize: '0.9rem',
-                transition: 'all 0.2s ease',
+                boxShadow: '2px 2px 0 #171717',
+                transition: 'all 0.15s ease',
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.background = 'var(--bg-darker)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.background = '#fff';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               {/* Añadimos la imagen dentro del botón */}
@@ -632,9 +632,10 @@ function App() {
         {((results && results.games && results.games.length > 0) || (query === '' && watchlistData && watchlistData.length > 0)) && (
           <div style={{
 
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '18px',
+            background: '#fff',
+            border: '2px solid #000',
+            boxShadow: '3px 3px 0 #171717',
+            borderRadius: '12px',
             padding: '0.4rem 1rem',
             marginBottom: '15px',
             color: 'var(--text-main)',
@@ -653,12 +654,13 @@ function App() {
                 marginBottom: '15px',
                 marginLeft: '15px',
                 gap: '8px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '10px',
+                background: '#fff',
+                border: '2px solid #000',
+                boxShadow: '2px 2px 0 #171717',
+                borderRadius: '8px',
                 padding: '0.4rem 1rem',
                 color: 'var(--text-main)',
-                cursor: 'pointer',
+                cursor: "url('black-12/14 cursor.cur') 5 5, pointer",
                 fontFamily: 'var(--font-sans)',
                 fontWeight: '500',
                 fontSize: '0.9rem',
@@ -666,12 +668,10 @@ function App() {
 
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.background = 'var(--bg-darker)';
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.background = '#fff';
               }}
             >
 
@@ -723,20 +723,21 @@ function App() {
         {
           backendStatus && backendStatus.isLoading && (
             <div style={{
-              background: 'rgba(0, 160, 233, 0.1)',
-              border: '1px solid rgba(0, 160, 233, 0.2)',
+              background: 'rgba(250, 167, 0, 0.15)',
+              border: '2px solid #000',
+              boxShadow: '2px 2px 0 #171717',
               borderRadius: '12px',
               padding: '0.8rem 1.2rem',
               marginBottom: '2rem',
               textAlign: 'center',
               fontSize: '0.9rem',
-              color: 'var(--switch-blue)',
+              color: 'var(--text-main)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.6rem'
             }}>
-              <span style={{ display: 'inline-block', width: '10px', height: '10px', background: 'var(--switch-blue)', borderRadius: '50%', animation: 'pulse 1s infinite' }}></span>
+              <span style={{ display: 'inline-block', width: '10px', height: '10px', background: 'var(--switch-blue)', border: '1px solid #000', borderRadius: '50%', animation: 'pulse 1s infinite' }}></span>
               El servidor está descargando la base de datos de la eShop de Japón para comparaciones rápidas. Búsquedas disponibles, el mapeo de Japón se activará al completarse.
             </div>
           )
@@ -746,12 +747,13 @@ function App() {
         {
           error && (
             <div style={{
-              background: 'rgba(230, 0, 18, 0.1)',
-              border: '1px solid rgba(230, 0, 18, 0.2)',
+              background: 'rgba(214, 0, 111, 0.08)',
+              border: '2px solid #000',
+              boxShadow: '2px 2px 0 #171717',
               borderRadius: '12px',
               padding: '1rem 1.5rem',
               marginBottom: '2rem',
-              color: '#ff4d4d',
+              color: 'var(--switch-red)',
               textAlign: 'center'
             }}>
               <strong>Error:</strong> {error}
@@ -804,6 +806,8 @@ function App() {
             <div className="watchlist-section" style={{ marginTop: '1rem' }}>
               <h2 className="section-title" style={{
                 fontSize: '1.4rem',
+                fontFamily: 'var(--font-display)',
+                textTransform: 'uppercase',
                 fontWeight: '700',
                 marginBottom: '1.5rem',
                 display: 'flex',
@@ -828,9 +832,9 @@ function App() {
                 <div className="empty-watchlist" style={{
                   textAlign: 'center',
                   padding: '3rem 2rem',
-                  border: '1px dashed rgba(255, 255, 255, 0.1)',
+                  border: '2px dashed #000',
                   borderRadius: '16px',
-                  background: 'rgba(255, 255, 255, 0.01)'
+                  background: 'rgba(0, 0, 0, 0.02)'
                 }}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
@@ -861,7 +865,7 @@ function App() {
               <span>1 JPY = {backendStatus.exchangeRates.JPY} EUR</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span className="fx-dot" style={{ background: 'var(--switch-blue)', boxShadow: '0 0 8px var(--switch-blue)' }}></span>
+              <span className="fx-dot" style={{ background: 'var(--switch-blue)', border: '1px solid #000', boxShadow: 'none' }}></span>
               <span>1 USD = {backendStatus.exchangeRates.USD} EUR</span>
             </div>
           </div>
