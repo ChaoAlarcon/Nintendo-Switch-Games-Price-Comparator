@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-//Games 
+// Games 
 import zeldaLogo from './games_logos/zelda.png';
 import marioLogo from './games_logos/super-mario-seeklogo.png';
 import pokemonLogo from './games_logos/Pokemon-Logo.png';
@@ -8,16 +8,17 @@ import metroidLogo from './games_logos/Metroid.png';
 import personaLogo from './games_logos/Persona-5-Emblem.png';
 import splatoonLogo from './games_logos/Splatoon-Logo.png';
 import bayonettaLogo from './games_logos/Bayonetta.png';
-import minecraftLogo from './games_logos/Minecraft-Logo.png';
 
-//Shops logos
+// Shops logos
 import spainShop from "./images/SpainShop.png";
 import usaShop from "./images/UsaShop.png";
 import japanShop from "./images/JapanShop.png";
 import amazon from "./images/Amazon.png";
-import lupaIcon from "./images/lupa2.png";
+import lupaIcon from "./images/lupa.png";
 
-
+import heartIcon from "./images/heart.png";
+import redHeartIcon from "./images/red_heart.png";
+import heartHoverIcon from "./images/heart_hover.png";
 
 
 const SUGGESTIONS = [
@@ -28,10 +29,8 @@ const SUGGESTIONS = [
   { name: 'Persona', image: personaLogo },
   { name: 'Splatoon', image: splatoonLogo },
   { name: 'Bayonetta', image: bayonettaLogo },
-  { name: 'Minecraft', image: minecraftLogo },
-
-
 ];
+
 
 function App() {
   const [query, setQuery] = useState('');
@@ -135,17 +134,15 @@ function App() {
     loadWatchlist(next);
   };
 
-  // Helper to format currency
+  // Helpers to format currency
   const formatEUR = (value) => {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(value);
   };
 
-  // Helper to format JPY
   const formatJPY = (value) => {
     return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(value);
   };
 
-  // Helper to format USD
   const formatUSD = (value) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
   };
@@ -239,7 +236,7 @@ function App() {
     const isFav = watchlistIds.includes(game.euNsuid);
 
     return (
-      <div key={game.euNsuid} className="game-card glass-panel" style={{ padding: 0, border: '3px solid #000' }}>
+      <div key={game.euNsuid} className="game-card glass-panel" style={{ padding: 0, border: '3px solid #000', marginBottom: '1.5rem' }}>
         {/* Game header details */}
         <div className="game-card-header">
           <img src={coverSrc} alt={`Portada de ${game.title}`} className="game-cover" onError={(e) => {
@@ -250,32 +247,22 @@ function App() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
                 <h2 className="game-title">{game.title}</h2>
-                <button
-                  type="button"
-                  onClick={() => toggleWatchlist(game.euNsuid)}
-                  className={`watchlist-btn ${isFav ? 'active' : ''}`}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '0.3rem',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease',
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'rgba(214, 0, 111, 0.1)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'none';
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill={isFav ? "var(--switch-red)" : "none"} stroke={isFav ? "var(--switch-red)" : "var(--text-secondary)"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.2s ease' }} onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.15)'} onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}>
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                  </svg>
-                </button>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => toggleWatchlist(game.euNsuid)}
+                    className={`watchlist-btn ${isFav ? 'active' : ''}`}
+                  >
+                    {/* Icono normal (línea) */}
+                    <img src={heartIcon} alt="Add to watchlist" className="heart heart-empty" />
+
+                    {/* NUEVO Icono al pasar el ratón */}
+                    <img src={heartHoverIcon} alt="Add to watchlist" className="heart heart-hover" />
+
+                    {/* Icono activo (lleno) */}
+                    <img src={redHeartIcon} alt="In watchlist" className="heart heart-filled" />
+                  </button>
+                </div>
               </div>
 
               {game.jpGame && game.jpGame.title && game.jpGame.title !== game.title && (
@@ -320,11 +307,10 @@ function App() {
 
         {/* Pricing grid */}
         <div className="comparison-grid">
-
           {/* Precios Físicos */}
-          <div className={`price-card ${isPhysicalCheapest ? 'cheapest' : ''}`} style={{ gridColumn: physicalOffers.length === 0 ? undefined : undefined }}>
+          <div className={`price-card ${isPhysicalCheapest ? 'cheapest' : ''}`}>
             <div className="shop-name">
-              <img src={amazon} style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
+              <img src={amazon} alt="Amazon" style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
               <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>Físico (Cartucho)</h4>
             </div>
             {cheapestPhysical ? (
@@ -344,12 +330,8 @@ function App() {
                         alignItems: 'center',
                         padding: '0.35rem 0.6rem',
                         borderRadius: '6px',
-                        background: offer.seller === cheapestPhysical.seller
-                          ? 'rgba(214, 0, 111, 0.1)'
-                          : 'rgba(0, 0, 0, 0.03)',
-                        border: offer.seller === cheapestPhysical.seller
-                          ? '2px solid var(--switch-red)'
-                          : '1px solid rgba(0, 0, 0, 0.15)',
+                        background: offer.seller === cheapestPhysical.seller ? 'rgba(214, 0, 111, 0.1)' : 'rgba(0, 0, 0, 0.03)',
+                        border: offer.seller === cheapestPhysical.seller ? '2px solid var(--switch-red)' : '1px solid rgba(0, 0, 0, 0.15)',
                         textDecoration: 'none',
                         color: 'var(--text-main)',
                         fontSize: '0.82rem',
@@ -370,7 +352,7 @@ function App() {
                 No encontrado
               </div>
             )}
-            {cheapestPhysical && (
+            {cheapestPhysical ? (
               <a
                 href={cheapestPhysical.url}
                 target="_blank"
@@ -380,8 +362,7 @@ function App() {
               >
                 Ver mejor precio
               </a>
-            )}
-            {!cheapestPhysical && (
+            ) : (
               <a
                 href={`https://www.amazon.es/s?k=Nintendo+Switch+${encodeURIComponent(game.title)}`}
                 target="_blank"
@@ -397,7 +378,7 @@ function App() {
           {/* Nintendo eShop España */}
           <div className={`price-card ${game.cheapest && game.cheapest.platform === 'eShop ES' ? 'cheapest' : ''}`}>
             <div className="shop-name">
-              <img src={spainShop} style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
+              <img src={spainShop} alt="eShop España" style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
               <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>eShop (ES)</h4>
             </div>
             {esPrice ? (
@@ -431,7 +412,7 @@ function App() {
           {/* Nintendo eShop Japón */}
           <div className={`price-card ${game.cheapest && game.cheapest.platform === 'eShop JP' ? 'cheapest' : ''}`}>
             <div className="shop-name">
-              <img src={japanShop} style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
+              <img src={japanShop} alt="eShop Japón" style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
               <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>eShop (JP)</h4>
             </div>
             {jpPrice ? (
@@ -471,7 +452,7 @@ function App() {
           {/* Nintendo eShop EE.UU. */}
           <div className={`price-card ${game.cheapest && game.cheapest.platform === 'eShop US' ? 'cheapest' : ''}`}>
             <div className="shop-name">
-              <img src={usaShop} style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
+              <img src={usaShop} alt="eShop USA" style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
               <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>eShop (US)</h4>
             </div>
             {usPrice ? (
@@ -509,7 +490,7 @@ function App() {
           {/* Instant Gaming */}
           <div className={`price-card ${game.cheapest && game.cheapest.platform === 'Instant Gaming' ? 'cheapest' : ''}`}>
             <div className="shop-name">
-              <span style={{ color: 'var(--warning)' }}>⚡</span>
+              <span style={{ marginRight: '0.4rem', color: 'var(--warning)' }}>⚡</span>
               Instant Gaming
             </div>
             {igPrice ? (
@@ -541,13 +522,10 @@ function App() {
               Comprar Clave
             </a>
           </div>
-
-
         </div>
       </div>
     );
   };
-
 
   const processedSearchResults = results ? getProcessedGames(results.games) : [];
   const processedWatchlistResults = getProcessedGames(watchlistData);
@@ -592,11 +570,12 @@ function App() {
         <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '0.8rem', marginBottom: '2rem' }}>
           {SUGGESTIONS.map(s => (
             <button
+              className="suggestion-button"
               key={s.name}
               onClick={() => handleSuggestionClick(s.name)}
               disabled={loading}
               style={{
-                display: 'flex', // Añadido para alinear imagen y texto
+                display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 background: '#fff',
@@ -604,7 +583,6 @@ function App() {
                 borderRadius: '20px',
                 padding: '0.4rem 1rem',
                 color: 'var(--text-main)',
-                cursor: "url('black-12/14 cursor.cur') 5 5, pointer",
                 fontFamily: 'var(--font-sans)',
                 fontWeight: '500',
                 fontSize: '0.9rem',
@@ -620,18 +598,14 @@ function App() {
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              {/* Añadimos la imagen dentro del botón */}
               <img src={s.image} alt={s.name} style={{ width: '100px', height: 'auto' }} />
-
             </button>
           ))}
         </div>
 
-
         {/* Controls: Sorting and Filtering */}
         {((results && results.games && results.games.length > 0) || (query === '' && watchlistData && watchlistData.length > 0)) && (
           <div style={{
-
             background: '#fff',
             border: '2px solid #000',
             boxShadow: '3px 3px 0 #171717',
@@ -643,46 +617,21 @@ function App() {
             fontWeight: '500',
             fontSize: '0.9rem',
           }}>
-
             <label htmlFor="sort-select">Ordenar por:</label>
             <select
               id="sort-select"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="control-select" style={{
-                marginTop: '15px',
-                marginBottom: '15px',
-                marginLeft: '15px',
-                gap: '8px',
-                background: '#fff',
-                border: '2px solid #000',
-                boxShadow: '2px 2px 0 #171717',
-                borderRadius: '8px',
-                padding: '0.4rem 1rem',
-                color: 'var(--text-main)',
-                cursor: "url('black-12/14 cursor.cur') 5 5, pointer",
-                fontFamily: 'var(--font-sans)',
-                fontWeight: '500',
-                fontSize: '0.9rem',
-
-
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'var(--bg-darker)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = '#fff';
-              }}
+              className="control-select"
+              onMouseOver={(e) => { e.currentTarget.style.background = 'var(--bg-darker)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = '#fff'; }}
             >
-
               <option value="relevance">Relevancia</option>
               <option value="price_asc">Precio: Menor a Mayor</option>
               <option value="price_desc">Precio: Mayor a Menor</option>
               <option value="discount_desc">Descuento %: Mayor a Menor</option>
               <option value="release_date">Fecha de Lanzamiento</option>
             </select>
-
-
 
             <label className="control-checkbox-label">
               <input
@@ -691,191 +640,138 @@ function App() {
                 onChange={(e) => setFilterOnSale(e.target.checked)}
                 className={filterOnSale ? 'check checked' : 'check'}
               />
-              <span className="checkbox-custom" style={{
-                marginLeft: '15px',
-              }} ></span>
+              <span className="checkbox-custom" style={{ marginLeft: '15px' }}></span>
               Solo en Oferta
             </label>
 
-
-            <label className="control-checkbox-label" style={{
-              marginLeft: '15px',
-            }}>
+            <label className="control-checkbox-label" style={{ marginLeft: '15px' }}>
               <input
                 type="checkbox"
                 checked={filterInStock}
                 onChange={(e) => setFilterInStock(e.target.checked)}
                 className={filterInStock ? 'check checked' : 'check'}
               />
-              <span className="checkbox-custom" style={{
-                marginLeft: '15px',
-              }}></span>
+              <span className="checkbox-custom" style={{ marginLeft: '15px' }}></span>
               Solo en Stock (Instant Gaming)
             </label>
-
-
-          </div>
-        )
-        }
-
-
-        {/* Status indicator (if XML is still caching in backend) */}
-        {
-          backendStatus && backendStatus.isLoading && (
-            <div style={{
-              background: 'rgba(250, 167, 0, 0.15)',
-              border: '2px solid #000',
-              boxShadow: '2px 2px 0 #171717',
-              borderRadius: '12px',
-              padding: '0.8rem 1.2rem',
-              marginBottom: '2rem',
-              textAlign: 'center',
-              fontSize: '0.9rem',
-              color: 'var(--text-main)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.6rem'
-            }}>
-              <span style={{ display: 'inline-block', width: '10px', height: '10px', background: 'var(--switch-blue)', border: '1px solid #000', borderRadius: '50%', animation: 'pulse 1s infinite' }}></span>
-              El servidor está descargando la base de datos de la eShop de Japón para comparaciones rápidas. Búsquedas disponibles, el mapeo de Japón se activará al completarse.
-            </div>
-          )
-        }
-
-        {/* Error message */}
-        {
-          error && (
-            <div style={{
-              background: 'rgba(214, 0, 111, 0.08)',
-              border: '2px solid #000',
-              boxShadow: '2px 2px 0 #171717',
-              borderRadius: '12px',
-              padding: '1rem 1.5rem',
-              marginBottom: '2rem',
-              color: 'var(--switch-red)',
-              textAlign: 'center'
-            }}>
-              <strong>Error:</strong> {error}
-            </div>
-          )
-        }
-
-        {/* Loading Spinner */}
-        {
-          loading && (
-            <div className="loading-container">
-              <div className="switch-loader">
-                <span className="joycon-l"></span>
-                <span className="joycon-r"></span>
-              </div>
-              <p style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '1.1rem' }}>
-                Buscando mejores precios y convirtiendo divisas...
-              </p>
-            </div>
-          )
-        }
-
-        {/* Search Results */}
-        {
-          !loading && results && (
-            <div>
-              {results.games.length === 0 ? (
-                <div className="no-results">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '1rem' }}>
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
-                  </svg>
-                  <p style={{ fontSize: '1.2rem', fontWeight: 600 }}>No se encontraron juegos</p>
-                  <p style={{ fontSize: '0.95rem', marginTop: '0.3rem' }}>Intenta buscar con palabras clave más cortas como "Zelda", "Mario" o "Metroid".</p>
-                </div>
-              ) : processedSearchResults.length === 0 ? (
-                <div className="no-results">
-                  <p style={{ fontSize: '1.1rem' }}>Ningún juego coincide con los filtros aplicados.</p>
-                </div>
-              ) : (
-                processedSearchResults.map(game => renderGameCard(game))
-              )}
-            </div>
-          )
-        }
-
-        {/* Watchlist Section */}
-        {
-          query === '' && !loading && (
-            <div className="watchlist-section" style={{ marginTop: '1rem' }}>
-              <h2 className="section-title" style={{
-                fontSize: '1.4rem',
-                fontFamily: 'var(--font-display)',
-                textTransform: 'uppercase',
-                fontWeight: '700',
-                marginBottom: '1.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                color: 'var(--text-main)'
-              }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="var(--switch-red)" stroke="var(--switch-red)" strokeWidth="2" style={{ marginRight: '0.6rem' }}>
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                </svg>
-                Tus Favoritos (Watchlist)
-              </h2>
-
-              {watchlistLoading ? (
-                <div className="loading-container" style={{ padding: '2rem' }}>
-                  <div className="switch-loader">
-                    <span className="joycon-l"></span>
-                    <span className="joycon-r"></span>
-                  </div>
-                  <p style={{ color: 'var(--text-secondary)', marginTop: '1rem' }}>Actualizando precios favoritos...</p>
-                </div>
-              ) : watchlistData.length === 0 ? (
-                <div className="empty-watchlist" style={{
-                  textAlign: 'center',
-                  padding: '3rem 2rem',
-                  border: '2px dashed #000',
-                  borderRadius: '16px',
-                  background: 'rgba(0, 0, 0, 0.02)'
-                }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-                  </svg>
-                  <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Tu lista de favoritos está vacía</p>
-                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginTop: '0.4rem', maxWidth: '450px', margin: '0.4rem auto 0 auto', lineHeight: '1.4' }}>
-                    Busca tus juegos favoritos y pulsa el icono del corazón para guardarlos aquí. Se actualizarán automáticamente con los precios reales.
-                  </p>
-                </div>
-              ) : processedWatchlistResults.length === 0 ? (
-                <div className="no-results" style={{ padding: '2rem' }}>
-                  <p>Ningún favorito coincide con los filtros aplicados.</p>
-                </div>
-              ) : (
-                processedWatchlistResults.map(game => renderGameCard(game))
-              )}
-            </div>
-          )
-        }
-      </main >
-
-      {/* Footer Info */}
-      < footer className="footer" >
-        {backendStatus && backendStatus.exchangeRates && (
-          <div className="fx-info" style={{ marginBottom: '1.5rem', display: 'inline-flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span className="fx-dot"></span>
-              <span>1 JPY = {backendStatus.exchangeRates.JPY} EUR</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span className="fx-dot" style={{ background: 'var(--switch-blue)', border: '1px solid #000', boxShadow: 'none' }}></span>
-              <span>1 USD = {backendStatus.exchangeRates.USD} EUR</span>
-            </div>
           </div>
         )}
-        <p>Nintendo Switch Price Comparator &copy; 2026. Esta aplicación es independiente y no está afiliada con Nintendo.</p>
-        <p style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          * Las compras en la eShop de Japón o EE. UU. requieren una cuenta Nintendo de esa región. La Nintendo Switch es 100% libre de región.
-        </p>
-      </footer >
-    </div >
+
+        {/* Status indicator */}
+        {backendStatus && backendStatus.isLoading && (
+          <div style={{
+            background: 'rgba(250, 167, 0, 0.15)',
+            border: '2px solid #000',
+            boxShadow: '2px 2px 0 #171717',
+            borderRadius: '12px',
+            padding: '0.8rem 1.2rem',
+            marginBottom: '2rem',
+            textAlign: 'center',
+            fontSize: '0.9rem',
+            color: 'var(--text-main)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.6rem'
+          }}>
+            <span style={{ display: 'inline-block', width: '10px', height: '10px', background: 'var(--switch-blue)', border: '1px solid #000', borderRadius: '50%', animation: 'pulse 1s infinite' }}></span>
+            El servidor está descargando la base de datos de la eShop de Japón para comparaciones rápidas. Búsquedas disponibles, el mapeo de Japón se activará al completarse.
+          </div>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <div style={{
+            background: 'rgba(214, 0, 111, 0.08)',
+            border: '2px solid #000',
+            boxShadow: '2px 2px 0 #171717',
+            borderRadius: '12px',
+            padding: '1rem 1.5rem',
+            marginBottom: '2rem',
+            color: 'var(--switch-red)',
+            textAlign: 'center'
+          }}>
+            <strong>Error:</strong> {error}
+          </div>
+        )}
+
+        {/* Loading Spinner */}
+        {/* Para la sección de búsqueda */}
+        {loading && (
+          <div className="loading-container" key="search-loading">
+            <div className="switch-loader">
+              <span className="joycon-l"></span>
+              <span className="joycon-r"></span>
+            </div>
+            <p>Buscando mejores precios...</p>
+          </div>
+        )}
+
+        {/* Para la sección de favoritos (Watchlist) */}
+        {watchlistLoading && (
+          <div className="loading-container" key="watchlist-loading">
+            <div className="switch-loader">
+              <span className="joycon-l"></span>
+              <span className="joycon-r"></span>
+            </div>
+            <p>Actualizando tu lista...</p>
+          </div>
+        )}
+
+
+
+        {/* Search Results */}
+        {!loading && results && (
+          <div>
+            {results.games.length === 0 ? (
+              <div className="no-results">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '1rem' }}>
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
+                <p style={{ fontSize: '1.2rem', fontWeight: 600 }}>No se encontraron juegos</p>
+                <p style={{ fontSize: '0.95rem', marginTop: '0.3rem' }}>Intenta buscar con palabras clave más cortas como "Zelda", "Mario" o "Metroid".</p>
+              </div>
+            ) : processedSearchResults.length === 0 ? (
+              <div className="no-results">
+                <p style={{ fontSize: '1.1rem' }}>Ningún juego coincide con los filtros aplicados.</p>
+              </div>
+            ) : (
+              processedSearchResults.map(game => renderGameCard(game))
+            )}
+          </div>
+        )}
+
+        {/* Watchlist Section */}
+        {query === '' && !loading && (
+          <div className="watchlist-section" style={{ marginTop: '1rem' }}>
+            <h2 className="section-title" style={{
+              fontSize: '1.4rem',
+              fontFamily: 'var(--font-display)',
+              textTransform: 'uppercase',
+              fontWeight: '700',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              color: 'var(--text-main)'
+            }}>
+              <img src={redHeartIcon} alt="Heart" className='RedHeart' />
+              Tu Lista de Favoritos
+            </h2>
+
+            {watchlistLoading ? (
+              <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Actualizando precios de favoritos...</p>
+            ) : processedWatchlistResults.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No tienes juegos guardados en tu lista todavía.</p>
+            ) : (
+              <div className="watchlist-grid">
+                {processedWatchlistResults.map(game => renderGameCard(game))}
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
 
