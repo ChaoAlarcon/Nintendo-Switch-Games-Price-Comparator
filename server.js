@@ -129,6 +129,35 @@ function getBrowser() {
   return browserPromise;
 }
 
+/** Wraps a promise with a timeout. Returns null if the timeout fires first. */
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => {
+      console.warn(`Timeout (${ms}ms) reached for scraper: ${label}`);
+      resolve(null);
+    }, ms))
+  ]);
+}
+
+/** Simple concurrency limiter: runs at most `limit` async tasks at a time. */
+function createConcurrencyLimiter(limit) {
+  let active = 0;
+  const queue = [];
+  const next = () => {
+    if (queue.length === 0 || active >= limit) return;
+    active++;
+    const { fn, resolve, reject } = queue.shift();
+    fn().then(resolve).catch(reject).finally(() => { active--; next(); });
+  };
+  return (fn) => new Promise((resolve, reject) => {
+    queue.push({ fn, resolve, reject });
+    next();
+  });
+}
+const physicalLimiter = createConcurrencyLimiter(2); // max 2 games scraped in parallel
+
+
 // --- Physical price scrapers ---
 const SCRAPE_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
@@ -176,7 +205,7 @@ async function scrapeAmazonEs(title) {
     const price = parseFloat(raw);
     if (isNaN(price) || price <= 0) return null;
 
-    return { seller: 'Amazon.es', price, url: result.url || url, inStock: true, format: 'Físico' };
+    return { seller: 'Amazon.es', price, url: result.url || url, inStock: true, format: 'Físico', category: 'new' };
   } catch (err) {
     console.warn('Amazon.es scrape failed:', err.message);
     return null;
@@ -210,7 +239,7 @@ async function scrapeFnacEs(title) {
     const price = parseFloat(raw);
     if (isNaN(price) || price <= 0) return null;
 
-    return { seller: 'Fnac.es', price, url: result.url || url, inStock: true, format: 'Físico' };
+    return { seller: 'Fnac.es', price, url: result.url || url, inStock: true, format: 'Físico', category: 'new' };
   } catch (err) {
     console.warn('Fnac.es scrape failed:', err.message);
     return null;
@@ -244,16 +273,248 @@ async function scrapeMediaMarktEs(title) {
     const price = parseFloat(raw);
     if (isNaN(price) || price <= 0) return null;
 
-    return { seller: 'MediaMarkt.es', price, url: result.url || url, inStock: true, format: 'Físico' };
+    return { seller: 'MediaMarkt.es', price, url: result.url || url, inStock: true, format: 'Físico', category: 'new' };
   } catch (err) {
     console.warn('MediaMarkt.es scrape failed:', err.message);
     return null;
   }
 }
 
+// --- Second-hand store scrapers ---
+
+/** CEX: public JSON search API */
+async function scrapeCex(title) {
+  try {
+    const searchQ = encodeURIComponent(`${title} Switch`);
+    const url = `https://wss2.cex.uk.webuy.io/v3/boxes?q=${searchQ}&firstRecord=1&count=3&sortOrder=1`;
+    console.log(`Querying CEX: ${url}`);
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Referer': 'https://es.cex.es/'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const boxes = data?.response?.data?.boxes;
+    if (!boxes || boxes.length === 0) return null;
+
+    // Filter to Switch category (categoryName includes 'Switch')
+    const switchBoxes = boxes.filter(b =>
+      (b.categoryName || '').toLowerCase().includes('switch') ||
+      (b.boxName || '').toLowerCase().includes('switch')
+    );
+    const box = switchBoxes[0] || boxes[0];
+    if (!box) return null;
+
+    const price = parseFloat(box.cashPrice || box.exchangePrice || 0);
+    if (isNaN(price) || price <= 0) return null;
+
+    const boxId = box.boxId || '';
+    const productUrl = `https://es.cex.es/tienda/juegos-nintendo/nintendo-switch/${boxId}`;
+
+    return {
+      seller: 'CEX',
+      price,
+      url: productUrl,
+      inStock: (box.canBuy === 1),
+      format: 'Segunda Mano',
+      category: 'second-hand'
+    };
+  } catch (err) {
+    console.warn('CEX scrape failed:', err.message);
+    return null;
+  }
+}
+
+/** eBay.es: search via fetch (public HTML) */
+async function scrapeEbayEs(title) {
+  try {
+    const searchQ = encodeURIComponent(`${title} Nintendo Switch`);
+    const url = `https://www.ebay.es/sch/i.html?_nkw=${searchQ}&_sacat=0&LH_BIN=1&_sop=15`; // BIN = Buy It Now, sort by price+shipping asc
+    const browser = await getBrowser();
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    const result = await page.evaluate(() => {
+      const items = document.querySelectorAll('.s-item');
+      for (const item of items) {
+        const priceEl = item.querySelector('.s-item__price');
+        const linkEl = item.querySelector('.s-item__link');
+        const titleEl = item.querySelector('.s-item__title');
+        if (!priceEl || !linkEl) continue;
+        // Skip "Shop on eBay" placeholder
+        if (titleEl && titleEl.textContent.toLowerCase().includes('shop on ebay')) continue;
+        return { priceStr: priceEl.textContent, url: linkEl.href };
+      }
+      return null;
+    });
+    await page.close();
+
+    if (!result) return null;
+    // eBay price can be "14,99 EUR" or "14,99 EUR a 29,99 EUR" — take first price
+    const match = result.priceStr.match(/([\d.,]+)/);
+    if (!match) return null;
+    const raw = match[1].replace(/\./g, '').replace(',', '.');
+    const price = parseFloat(raw);
+    if (isNaN(price) || price <= 0) return null;
+
+    return {
+      seller: 'eBay.es',
+      price,
+      url: result.url,
+      inStock: true,
+      format: 'Segunda Mano',
+      category: 'second-hand'
+    };
+  } catch (err) {
+    console.warn('eBay.es scrape failed:', err.message);
+    return null;
+  }
+}
+
+/** Wallapop: public search API */
+async function scrapeWallapop(title) {
+  try {
+    const searchQ = encodeURIComponent(`${title} Nintendo Switch`);
+    const url = `https://api.wallapop.com/api/v3/general/search?keywords=${searchQ}&filters_source=search_box&latitude=40.4168&longitude=-3.7038&order_by=price_low_to_high`;
+    console.log(`Querying Wallapop: ${url}`);
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'es-ES,es;q=0.9',
+        'DeviceOS': 'web',
+        'Referer': 'https://es.wallapop.com/'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items = data?.search_objects;
+    if (!items || items.length === 0) return null;
+
+    // Find first item (already sorted by price asc)
+    const item = items[0];
+    const price = parseFloat(item.price);
+    if (isNaN(price) || price <= 0) return null;
+
+    const webSlug = item.web_slug || item.id;
+    const productUrl = `https://es.wallapop.com/item/${webSlug}`;
+
+    return {
+      seller: 'Wallapop',
+      price,
+      url: productUrl,
+      inStock: true,
+      format: 'Segunda Mano',
+      category: 'second-hand'
+    };
+  } catch (err) {
+    console.warn('Wallapop scrape failed:', err.message);
+    return null;
+  }
+}
+
+/** Vinted: public search via fetch */
+async function scrapeVinted(title) {
+  try {
+    const searchQ = encodeURIComponent(`${title} Nintendo Switch`);
+    const url = `https://www.vinted.es/api/v2/catalog/items?search_text=${searchQ}&order=price_low_to_high&per_page=5`;
+    console.log(`Querying Vinted: ${url}`);
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'es-ES,es;q=0.9',
+        'Referer': 'https://www.vinted.es/'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items = data?.items;
+    if (!items || items.length === 0) return null;
+
+    const item = items[0];
+    const price = parseFloat(item.price?.amount || item.price || 0);
+    if (isNaN(price) || price <= 0) return null;
+
+    const productUrl = item.url || `https://www.vinted.es/items/${item.id}`;
+
+    return {
+      seller: 'Vinted',
+      price,
+      url: productUrl,
+      inStock: true,
+      format: 'Segunda Mano',
+      category: 'second-hand'
+    };
+  } catch (err) {
+    console.warn('Vinted scrape failed:', err.message);
+    return null;
+  }
+}
+
+/** Cash Converters: scraping HTML via Puppeteer */
+async function scrapeCashConverters(title) {
+  try {
+    const searchQ = encodeURIComponent(`${title} Nintendo Switch`);
+    const url = `https://www.cashconverters.es/es/search/?query=${searchQ}`;
+    const browser = await getBrowser();
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36');
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    const result = await page.evaluate(() => {
+      // Try common product card selectors
+      const selectors = [
+        '.product-item',
+        '.cc-product-card',
+        '[class*="product-card"]',
+        '[class*="ProductCard"]',
+        '.article-card'
+      ];
+      let el = null;
+      for (const sel of selectors) {
+        el = document.querySelector(sel);
+        if (el) break;
+      }
+      if (!el) return null;
+
+      const priceEl = el.querySelector('[class*="price"], [class*="Price"], .price, .product-price');
+      const linkEl = el.querySelector('a');
+      if (!priceEl) return null;
+      return { priceStr: priceEl.textContent, url: linkEl ? linkEl.href : null };
+    });
+    await page.close();
+
+    if (!result) return null;
+    const match = result.priceStr.replace(/\./g, '').replace(',', '.').match(/([\d.]+)/);
+    if (!match) return null;
+    const price = parseFloat(match[1]);
+    if (isNaN(price) || price <= 0) return null;
+
+    return {
+      seller: 'Cash Converters',
+      price,
+      url: result.url || url,
+      inStock: true,
+      format: 'Segunda Mano',
+      category: 'second-hand'
+    };
+  } catch (err) {
+    console.warn('Cash Converters scrape failed:', err.message);
+    return null;
+  }
+}
+
 /**
- * Fetch physical game offers from Amazon.es, Fnac.es and MediaMarkt.es in parallel.
+ * Fetch all physical and second-hand game offers in parallel.
+ * New stores: Amazon.es, Fnac.es, MediaMarkt.es
+ * Second-hand stores: CEX, eBay.es, Wallapop, Vinted, Cash Converters
  * Results are cached 30 minutes per game title.
+ * Concurrency is limited to avoid saturating Puppeteer.
  */
 async function fetchPhysicalOffers(title) {
   const cacheKey = title.toLowerCase().trim();
@@ -261,18 +522,34 @@ async function fetchPhysicalOffers(title) {
   const now = Date.now();
   if (cached && cached.expiry > now) return cached.data;
 
-  console.log(`Fetching physical prices for: "${title}"`);
-  const [amazon, fnac, mediaMarkt] = await Promise.all([
-    scrapeAmazonEs(title),
-    scrapeFnacEs(title),
-    scrapeMediaMarktEs(title),
-  ]);
+  return physicalLimiter(async () => {
+    // Re-check cache in case another request already filled it while we waited
+    const cachedNow = physicalCache.get(cacheKey);
+    if (cachedNow && cachedNow.expiry > Date.now()) return cachedNow.data;
 
-  const offers = [amazon, fnac, mediaMarkt].filter(Boolean);
-  console.log(`Physical offers found for "${title}": ${offers.length} (${offers.map(o => o.seller).join(', ')})`);
+    console.log(`Fetching physical + second-hand prices for: "${title}"`);
+    const SCRAPER_TIMEOUT = 12000; // 12 seconds max per scraper
 
-  physicalCache.set(cacheKey, { data: offers, expiry: now + 30 * 60 * 1000 });
-  return offers;
+    const [
+      amazon, fnac, mediaMarkt,
+      cex, ebay, wallapop, vinted, cashConverters
+    ] = await Promise.all([
+      withTimeout(scrapeAmazonEs(title), SCRAPER_TIMEOUT, 'Amazon'),
+      withTimeout(scrapeFnacEs(title), SCRAPER_TIMEOUT, 'Fnac'),
+      withTimeout(scrapeMediaMarktEs(title), SCRAPER_TIMEOUT, 'MediaMarkt'),
+      withTimeout(scrapeCex(title), SCRAPER_TIMEOUT, 'CEX'),
+      withTimeout(scrapeEbayEs(title), SCRAPER_TIMEOUT, 'eBay'),
+      withTimeout(scrapeWallapop(title), SCRAPER_TIMEOUT, 'Wallapop'),
+      withTimeout(scrapeVinted(title), SCRAPER_TIMEOUT, 'Vinted'),
+      withTimeout(scrapeCashConverters(title), SCRAPER_TIMEOUT, 'CashConverters'),
+    ]);
+
+    const offers = [amazon, fnac, mediaMarkt, cex, ebay, wallapop, vinted, cashConverters].filter(Boolean);
+    console.log(`All offers found for "${title}": ${offers.length} (${offers.map(o => `${o.seller}[${o.category}]`).join(', ')})`);
+
+    physicalCache.set(cacheKey, { data: offers, expiry: Date.now() + 30 * 60 * 1000 });
+    return offers;
+  });
 }
 
 // Extract the core 4-character code of a Switch game (e.g. HACPAXEAB -> AXEA, HACAXEAA -> AXEA)

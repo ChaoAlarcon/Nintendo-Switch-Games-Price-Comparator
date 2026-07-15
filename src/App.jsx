@@ -14,6 +14,7 @@ import spainShop from "./images/SpainShop.png";
 import usaShop from "./images/UsaShop.png";
 import japanShop from "./images/JapanShop.png";
 import amazon from "./images/Amazon.png";
+import wallapop from "./images/wallapop.png";
 import lupaIcon from "./images/lupa.png";
 
 import heartIcon from "./images/heart.png";
@@ -224,10 +225,6 @@ function App() {
     const usPrice = game.prices.us;
     const igPrice = game.prices.ig;
     const physicalOffers = game.physicalOffers || [];
-    const cheapestPhysical = physicalOffers.length > 0
-      ? physicalOffers.reduce((best, o) => o.inStock && o.price < (best ? best.price : Infinity) ? o : best, null)
-      : null;
-    const isPhysicalCheapest = game.cheapest && physicalOffers.some(o => o.seller === game.cheapest.platform);
 
     const coverSrc = game.imageUrl
       ? game.imageUrl
@@ -307,73 +304,164 @@ function App() {
 
         {/* Pricing grid */}
         <div className="comparison-grid">
-          {/* Precios Físicos */}
-          <div className={`price-card ${isPhysicalCheapest ? 'cheapest' : ''}`}>
-            <div className="shop-name">
-              <img src={amazon} alt="Amazon" style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
-              <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>Físico (Cartucho)</h4>
-            </div>
-            {cheapestPhysical ? (
-              <div className="price-wrapper">
-                <div className="current-price">{formatEUR(cheapestPhysical.price)}</div>
-                <div className="jp-price-sub" style={{ color: 'var(--success)' }}>Mejor precio</div>
-                <div style={{ width: '100%', marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {physicalOffers.map((offer, i) => (
-                    <a
-                      key={i}
-                      href={offer.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '0.35rem 0.6rem',
-                        borderRadius: '6px',
-                        background: offer.seller === cheapestPhysical.seller ? 'rgba(214, 0, 111, 0.1)' : 'rgba(0, 0, 0, 0.03)',
-                        border: offer.seller === cheapestPhysical.seller ? '2px solid var(--switch-red)' : '1px solid rgba(0, 0, 0, 0.15)',
-                        textDecoration: 'none',
-                        color: 'var(--text-main)',
-                        fontSize: '0.82rem',
-                        transition: 'background 0.2s',
-                      }}
-                    >
-                      <span style={{ fontWeight: 500 }}>{offer.seller}</span>
-                      <span style={{ fontWeight: 700, color: offer.seller === cheapestPhysical.seller ? 'var(--switch-red)' : 'var(--text-main)' }}>
-                        {formatEUR(offer.price)}
-                      </span>
-                    </a>
-                  ))}
+          {/* Precios Nuevo (Físico): Amazon, Fnac, MediaMarkt */}
+          {(() => {
+            const newOffers = physicalOffers.filter(o => o.category === 'new');
+            const cheapestNew = newOffers.length > 0
+              ? newOffers.reduce((best, o) => o.inStock && o.price < (best ? best.price : Infinity) ? o : best, null)
+              : null;
+            const isNewCheapest = game.cheapest && newOffers.some(o => o.seller === game.cheapest.platform);
+            return (
+              <div className={`price-card ${isNewCheapest ? 'cheapest' : ''}`}>
+                <div className="shop-name">
+                  <img src={amazon} alt="Amazon" style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
+                  <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>Nuevo (Físico)</h4>
                 </div>
+                {cheapestNew ? (
+                  <div className="price-wrapper">
+                    <div className="current-price">{formatEUR(cheapestNew.price)}</div>
+                    <div className="jp-price-sub" style={{ color: 'var(--success)' }}>Mejor precio nuevo</div>
+                    <div style={{ width: '100%', marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {newOffers.map((offer, i) => (
+                        <a
+                          key={i}
+                          href={offer.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '0.35rem 0.6rem',
+                            borderRadius: '6px',
+                            background: offer.seller === cheapestNew.seller ? 'rgba(214, 0, 111, 0.1)' : 'rgba(0, 0, 0, 0.03)',
+                            border: offer.seller === cheapestNew.seller ? '2px solid var(--switch-red)' : '1px solid rgba(0, 0, 0, 0.15)',
+                            textDecoration: 'none',
+                            color: 'var(--text-main)',
+                            fontSize: '0.82rem',
+                            transition: 'background 0.2s',
+                          }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{offer.seller}</span>
+                          <span style={{ fontWeight: 700, color: offer.seller === cheapestNew.seller ? 'var(--switch-red)' : 'var(--text-main)' }}>
+                            {formatEUR(offer.price)}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--text-muted)', margin: 'auto 0', textAlign: 'center', fontSize: '0.9rem' }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>
+                      <img src={lupaIcon} style={{ marginTop: '-40px', width: '50px', height: '50px', alignItems: 'center', justifyContent: 'center' }} />
+                    </div>
+                    No encontrado
+                  </div>
+                )}
+                {cheapestNew ? (
+                  <a
+                    href={cheapestNew.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shop-link-btn"
+                    style={{ background: 'linear-gradient(135deg, var(--switch-blue), var(--switch-red))', color: '#fff' }}
+                  >
+                    Ver mejor precio nuevo
+                  </a>
+                ) : (
+                  <a
+                    href={`https://www.amazon.es/s?k=Nintendo+Switch+${encodeURIComponent(game.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shop-link-btn"
+                    style={{ opacity: 0.6 }}
+                  >
+                    Buscar en Amazon
+                  </a>
+                )}
               </div>
-            ) : (
-              <div style={{ color: 'var(--text-muted)', margin: 'auto 0', textAlign: 'center', fontSize: '0.9rem' }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>🔍</div>
-                No encontrado
+            );
+          })()}
+
+          {/* Segunda Mano: CEX, eBay, Wallapop, Vinted, Cash Converters */}
+          {(() => {
+            const usedOffers = physicalOffers.filter(o => o.category === 'second-hand');
+            const cheapestUsed = usedOffers.length > 0
+              ? usedOffers.reduce((best, o) => o.inStock && o.price < (best ? best.price : Infinity) ? o : best, null)
+              : null;
+            const isUsedCheapest = game.cheapest && usedOffers.some(o => o.seller === game.cheapest.platform);
+            return (
+              <div className={`price-card ${isUsedCheapest ? 'cheapest' : ''}`}>
+                <div className="shop-name">
+                  <img src={wallapop} alt="Wallapop" style={{ width: '145px', height: 'auto', marginLeft: '-50px', marginRight: '-45px' }} />
+                  <h4 style={{ fontSize: '1rem', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>Segunda Mano</h4>
+                </div>
+                {cheapestUsed ? (
+                  <div className="price-wrapper">
+                    <div className="current-price">{formatEUR(cheapestUsed.price)}</div>
+                    <div className="jp-price-sub" style={{ color: 'var(--warning)' }}>Mejor precio segunda mano</div>
+                    <div style={{ width: '100%', marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {usedOffers.map((offer, i) => (
+                        <a
+                          key={i}
+                          href={offer.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '0.35rem 0.6rem',
+                            borderRadius: '6px',
+                            background: offer.seller === cheapestUsed.seller ? 'rgba(250, 167, 0, 0.12)' : 'rgba(0, 0, 0, 0.03)',
+                            border: offer.seller === cheapestUsed.seller ? '2px solid var(--warning)' : '1px solid rgba(0, 0, 0, 0.15)',
+                            textDecoration: 'none',
+                            color: 'var(--text-main)',
+                            fontSize: '0.82rem',
+                            transition: 'background 0.2s',
+                            opacity: offer.inStock ? 1 : 0.5,
+                          }}
+                        >
+                          <span style={{ fontWeight: 500 }}>{offer.seller}</span>
+                          <span style={{ fontWeight: 700, color: offer.seller === cheapestUsed.seller ? 'var(--warning)' : 'var(--text-main)' }}>
+                            {offer.inStock ? formatEUR(offer.price) : 'Sin stock'}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--text-muted)', margin: 'auto 0', textAlign: 'center', fontSize: '0.9rem' }}>
+                    <div style={{ fontSize: '1.5rem', marginBottom: '0.3rem' }}>
+                      <img src={lupaIcon} style={{ marginTop: '-40px', width: '50px', height: '50px', alignItems: 'center', justifyContent: 'center' }} />
+                    </div>
+                    No encontrado
+                  </div>
+                )}
+                {cheapestUsed ? (
+                  <a
+                    href={cheapestUsed.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shop-link-btn"
+                    style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff' }}
+                  >
+                    Ver mejor segunda mano
+                  </a>
+                ) : (
+                  <a
+                    href={`https://es.wallapop.com/search?keywords=${encodeURIComponent('Nintendo Switch ' + game.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shop-link-btn"
+                    style={{ opacity: 0.6 }}
+                  >
+                    Buscar en Wallapop
+                  </a>
+                )}
               </div>
-            )}
-            {cheapestPhysical ? (
-              <a
-                href={cheapestPhysical.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shop-link-btn"
-                style={{ background: 'linear-gradient(135deg, var(--switch-blue), var(--switch-red))', color: '#fff' }}
-              >
-                Ver mejor precio
-              </a>
-            ) : (
-              <a
-                href={`https://www.amazon.es/s?k=Nintendo+Switch+${encodeURIComponent(game.title)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shop-link-btn"
-                style={{ opacity: 0.6 }}
-              >
-                Buscar en Amazon
-              </a>
-            )}
-          </div>
+            );
+          })()}
 
           {/* Nintendo eShop España */}
           <div className={`price-card ${game.cheapest && game.cheapest.platform === 'eShop ES' ? 'cheapest' : ''}`}>
